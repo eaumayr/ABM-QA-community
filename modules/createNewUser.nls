@@ -1,0 +1,28 @@
+;-------------------------------------------------------------------------------
+; The create-new-user method is called when a new agent is joining the 
+; community. It is a reporter method which creates a new agent, assigns values
+; to the agent attributes and returns the new agent to the main method (go). The
+; three attributes expertise, activity and q-a-ratio describe the agent 
+; behaviour, and the other variables initialise statistics and x-y coordinates.
+;-------------------------------------------------------------------------------
+to-report create-new-user
+  let new-user nobody
+
+  create-users 1 [
+    set expertise exp (random-float 1.0 / (- 0.2))
+    set activity expertise   
+    set q-a-ratio 0.6667 * (1 - expertise)
+    
+    set question-count 0
+    set answer-count 0
+    set best-answer-count 0
+    set returning-reply 0
+    set color white
+    setxy random-xcor random-ycor
+    set new-user self
+  ]
+  
+  report new-user
+end
+  
+  

@@ -1,0 +1,25 @@
+;-------------------------------------------------------------------------------
+; This method is run every time step. In r = accept-rate of the cases the model
+; will try to find a viable answer to accept based on its answer quality. Only 
+; answers that have a quality at least as high as the question requirement can 
+; be accepted. ToDo: remove unnecessary things and describe function of the 
+; method better.
+;-------------------------------------------------------------------------------
+to pick-best-answer
+  let question-age 1000 * exp (random-float 1.0 / (-0.1))
+  let r random 100
+  if r < accept-rate and any? questions with [ solved = -1 and potential-answers > 0 ] [  ; 0.33 * 0.33, for every posed question 33% of questions are solved
+    ask min-one-of questions with [ solved = -1 and potential-answers > 0 ] [ abs(ticks - question-age - created) ] [
+      set solved ticks
+      ask link-neighbors [
+        if is-answer? self [ set question-solved true ]
+      ]
+      ask one-of answers with [ origin = myself and quality >= [requirement] of myself ] [
+        ask origin [ 
+          set solved-position [previous-answers] of myself
+        ]
+        ask creator [ set best-answer-count best-answer-count + 1 ]
+      ]
+    ]
+  ]
+end

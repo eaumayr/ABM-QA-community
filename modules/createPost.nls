@@ -1,0 +1,107 @@
+;-------------------------------------------------------------------------------
+; The create-post method decides whether an agent creates a question or an 
+; answer based on the agent's q-a-ratio attribute. Then, it calls one of the 
+; other methods create-question or create-answer. It also updates the agent's
+; first-activity and last-activity attributes.
+;-------------------------------------------------------------------------------
+to create-post [ active-user ]
+  let rnd-q-r random-float 1.0
+  ifelse (rnd-q-r <= [q-a-ratio] of active-user) or (not any? questions with [creator != active-user]) [
+    create-question active-user
+    if [first-activity] of active-user = -1 [ ask active-user [ set first-activity ticks ] ]
+    ask active-user [ set last-activity ticks ]
+  ] [
+  create-answer active-user
+  ]
+end
+
+
+;------------------------------------------------------------------------------
+; The create-question method creates a question item, initialises its 
+; attributes, and creates a link to the agent that is requesting the creation 
+; of the question.
+;------------------------------------------------------------------------------
+to create-question [ active-user ]
+  create-questions 1 [
+    set creator active-user
+    set requirement [expertise] of active-user
+    set created ticks
+    set solved -1
+    set potential-answers 0
+    set solved-position -1
+    set color blue
+    setxy random-xcor random-ycor
+    create-link-with active-user [set color blue]
+    ask active-user [set question-count question-count + 1]
+  ]  
+end
+
+
+;------------------------------------------------------------------------------
+; The create-answer method first tries to find a suitable question to attach an
+; answer to. With the probability that is given in the returning-reply-
+; probability variable the agent will reply to a thread that they have replied
+; to before. Otherwise the agent will pick a recent question that has only very
+; few answers. Then, the actual answer is created and its attributes are 
+; initialised.
+;------------------------------------------------------------------------------
+to create-answer [ active-user ]
+  
+  ; Decide what question to pick. With probability returning-reply-probability 
+  ; the user will pick a question that they already replied to. Otherwise a 
+  ; question is being picked based on recency and number of existing answers.
+  let active-question nobody
+  let rnd-returning-reply random 100
+  if rnd-returning-reply <= returning-reply-probability [
+    ask active-user [ 
+      if any? link-neighbors with [ is-answer? self and not question-solved ] [
+        ask one-of link-neighbors with [ is-answer? self and not question-solved ] [ 
+          set active-question [origin] of self
+        ]
+      ]
+    ]
+  ]
+  if active-question = nobody [
+    let min-age ticks - ticks * exp(random-float 1.0 / (-0.1))
+    carefully [ 
+       ask one-of questions with [ creator != active-user and created >= min-age and answer-count <= random-exponential 1 and solved = -1 ] [
+         set active-question self
+       ]
+    ] [
+      ask max-one-of questions with [ creator != active-user ] [ created ] [
+        set active-question self
+      ]
+    ]
+  ]
+
+  ; Counting existing answers in thread and if any of them belong to the answerer.
+  let previous-post false
+  let thread-length 0
+  ask active-question [
+    ask link-neighbors [
+      if is-answer? self [
+        set thread-length thread-length + 1
+        if creator = active-user [ set previous-post true ]
+      ]
+    ]
+  ]
+  if previous-post [ ask active-user [ set returning-reply returning-reply + 1 ] ]
+
+  ; Create answer.
+  create-answers 1 [
+    set creator active-user
+    set quality [expertise] of active-user
+    set origin active-question
+    set created ticks
+    set origin-created [created] of active-question
+    set question-solved false
+    set previous-answers thread-length
+    set color grey
+    setxy random-xcor random-ycor
+    create-link-with active-user [set color grey]
+    create-link-with active-question [set color grey]
+    ask active-user [set answer-count answer-count  + 1]
+    ask active-question [set answer-count answer-count + 1]
+    if quality >= [requirement] of active-question [ ask active-question [ set potential-answers potential-answers + 1 ] ]
+  ]
+end
